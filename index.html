@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>moritz.gg</title>
+  <title>moritz.gg Bubble Game</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -21,26 +21,23 @@
     <source src="Assets/melistening.mp3" type="audio/mpeg">
   </audio>
 
+  <!-- Intro Overlay -->
+  <div id="intro">
+    <div class="center-text">Click</div>
+  </div>
+
   <!-- Slider Container -->
   <div id="slider" class="hidden">
 
-    <!-- Karte 1 -->
+    <!-- Karte 1 – Bubble-Spiel-Karte -->
     <div class="card" data-video="Assets/mecoding.mp4" data-color="#ff66cc" data-cursor="Assets/cursor-pink.cur">
-      <div class="card-header">
-        
-      </div>
-      <p class="card-text">
-        fortnite gamedeveloper (UTC +2)<br>
-        fluent <b>verse</b>, c#, javascript, python and pascal<br>
-        already worked with 
-        <a href="https://fortnite.gg/island?code=4059-2791-0712" class="text_link">@bios trio</a>, 
-        <a href="https://www.youtube.com/@StandartSkill" class="text_link">@stanni</a>, 
-        <a href="https://www.youtube.com/@AANDRE" class="text_link">@aandre</a>, 
-        <a href="https://www.youtube.com/@odumanpique" class="text_link">@oduman</a> 
-        and more.<br><br>
-        verse commissions: <span style="color: rgb(0, 255, 0);"><a href="https://discordapp.com/users/763426964244791312" style="color: inherit; text-decoration: none;">open</a></span>
-      </p>
+      <canvas id="bubble-game"></canvas>
     </div>
+
+    <!-- Switch Button -->
+    <button id="switch" class="switch-btn">
+      <img src="Assets/buttoncontent.png" alt="switch" class="switch-icon">
+    </button>
 
     <!-- Version Label --> 
     <div id="version">
@@ -49,5 +46,6 @@
   </div>
 
   <script src="script.js"></script>
+  <script src="bubblegame.js"></script>
 </body>
 </html>
