@@ -11,7 +11,9 @@ const cols = 10;
 const rows = 12;
 
 let grid = [];
-let currentBall = null;
+let currentBall = null; // Schießball
+let nextBall = null;    // Immer sichtbar unten
+let aimAngle = 0;
 let gameOver = false;
 
 // Ball-Klasse
@@ -68,14 +70,24 @@ function createGrid(){
     }
 }
 
-// Maus schießen
-canvas.addEventListener("click", e=>{
-    if(currentBall || gameOver) return;
+// Generiere neuen Schussball
+function generateBall(){
+    return new Ball(canvas.width/2, canvas.height - 30, colors[Math.floor(Math.random()*colors.length)]);
+}
+
+// Maus zum Zielen
+canvas.addEventListener("mousemove", e=>{
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-    const angle = Math.atan2(my - (canvas.height - 30), mx - canvas.width/2);
-    currentBall = new Ball(canvas.width/2, canvas.height-30, colors[Math.floor(Math.random()*colors.length)], Math.cos(angle)*6, Math.sin(angle)*6);
+    aimAngle = Math.atan2(my - (canvas.height - 30), mx - canvas.width/2);
+});
+
+// Klick = Schießen
+canvas.addEventListener("click", e=>{
+    if(currentBall || gameOver) return;
+    currentBall = new Ball(nextBall.x, nextBall.y, nextBall.color, Math.cos(aimAngle)*6, Math.sin(aimAngle)*6);
+    nextBall = generateBall();
 });
 
 // Kollision mit Grid
@@ -102,13 +114,12 @@ function attachBall(ball){
     if(collision){
         let row = collision.row;
         let col = collision.col;
-        // Nahe Position finden
         if(ball.y < getBallPos(row,col).y){
             row = row -1;
         }
         if(row<0) row=0;
         grid[row][col] = new Ball(...Object.values(getBallPos(row,col)), ball.color);
-        currentBall=null;
+        currentBall = null;
         checkMatches(row,col,ball.color);
     }
 }
@@ -157,6 +168,7 @@ function checkGameOver(){
 function restartGame(){
     createGrid();
     currentBall=null;
+    nextBall=generateBall();
     gameOver=false;
     document.getElementById("gameOver").classList.add("hidden");
 }
@@ -182,6 +194,15 @@ function draw(){
     }
     // Schießball zeichnen
     if(currentBall) currentBall.draw();
+    // Nächster Ball unten anzeigen
+    if(!currentBall && nextBall) nextBall.draw();
+
+    // Ziel-Linie
+    ctx.beginPath();
+    ctx.moveTo(canvas.width/2, canvas.height - 30);
+    ctx.lineTo(canvas.width/2 + Math.cos(aimAngle)*50, canvas.height -30 + Math.sin(aimAngle)*50);
+    ctx.strokeStyle = "#fff";
+    ctx.stroke();
 }
 
 // Loop
@@ -191,5 +212,7 @@ function loop(){
     requestAnimationFrame(loop);
 }
 
+// Init
 createGrid();
+nextBall = generateBall();
 loop();
