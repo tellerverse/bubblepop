@@ -1,45 +1,107 @@
-body {
-    margin: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    background: #222;
-    font-family: sans-serif;
-    color: #fff;
+@font-face {
+  font-family: 'Burbank';
+  src: url('Assets/burbankbigcondensed_black.otf') format('opentype');
 }
 
-.game-container {
-    position: relative;
+/* Grundlegendes Setup */
+body, html {
+  cursor: url('Assets/cursor-pink.cur'), auto;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  height: 100%;
+  font-family: 'Burbank', 'Poppins', sans-serif;
+  color: #fff;
+  perspective: 1000px; /* für Parallax Effekte */
 }
 
-canvas {
-    background: #111;
-    border: 2px solid #fff;
-    display: block;
+a, button {
+  cursor: url('Assets/cursor-red.cur'), pointer;
 }
 
-#gameOver {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.8);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    font-size: 2rem;
+/* Hintergrundvideos */
+.bg-video {
+  position: fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  object-fit: cover;
+  z-index:-2;
+  transition: opacity 1s ease, transform 10s linear, filter 10s linear;
+  transform: scale(1);
+  filter: hue-rotate(0deg);
 }
 
-.hidden {
-    display: none;
+.bg-video.active {
+  transform: scale(1.05);
+  filter: hue-rotate(15deg);
 }
 
-button {
-    padding: 10px 20px;
-    font-size: 1rem;
-    margin-top: 20px;
-    cursor: pointer;
+.bg-video.hidden { opacity:0; transition: opacity 1s ease; }
+
+
+@keyframes blink { 50% { opacity:0.4; } }
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity:1; }
+  50% { transform: scale(1.1); opacity:0.8; }
+}
+
+/* Slider Container */
+#slider { position: relative; width:100%; height:100%; opacity:0; transition: opacity 1s ease; }
+#slider.active { opacity:1; }
+
+/* Karten */
+.card {
+  position:absolute;
+  top:50%; left:50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  width:90vw; max-width:600px;
+  border-radius:25px; padding:30px;
+  backdrop-filter: blur(20px);
+  background: rgba(0,0,0,0.6);
+  border:2px solid var(--card-color);
+  color: var(--card-color);
+  font-family: 'Burbank', sans-serif;
+  box-sizing:border-box; opacity:0;
+  display:flex; flex-direction:column; gap:20px;
+  transition: all 0.8s ease;
+  animation: colorPulse 4s infinite alternate;
+}
+
+.card.active {
+  opacity:1;
+  transform: translate(-50%, -50%) scale(1);
+  z-index:2;
+}
+
+/* Farb-Pulsation (Helligkeit der Card-Color) */
+@keyframes colorPulse {
+  0% {
+    border-color: color-mix(in srgb, var(--card-color) 80%, white 20%);
+    color: color-mix(in srgb, var(--card-color) 80%, white 20%);
+  }
+  50% {
+    border-color: color-mix(in srgb, var(--card-color) 100%, white 0%);
+    color: color-mix(in srgb, var(--card-color) 100%, white 0%);
+  }
+  100% {
+    border-color: color-mix(in srgb, var(--card-color) 80%, white 20%);
+    color: color-mix(in srgb, var(--card-color) 80%, white 20%);
+  }
+}
+
+/* Card Text */
+.card-text { color: var(--card-color); font-size:1.3rem; line-height:1.3; }
+
+/* Version Label */
+#version { position: fixed; bottom: 10px; right: 15px; color: rgba(255,255,255,0.4); font-size: 0.9rem; letter-spacing: 1px; font-family: 'Burbank', sans-serif; }
+
+/* Responsive */
+@media (max-width:600px){
+  .card { width:95vw; padding:20px; }
+  .card-header { flex-direction:column; align-items:center; text-align:center; }
+  .profile-pic { width:100px; height:100px; }
+  .header-info h1 { font-size:2rem; }
+  .social-links { justify-content:center; }
+  .card-text { text-align:left; font-size:1.3rem; }
+  .switch-btn { width:12vw; height:12vw; max-width:60px; max-height:60px; right:10px; bottom:0; }
 }

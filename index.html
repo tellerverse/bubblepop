@@ -1,19 +1,53 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bubble Pop Classic</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>moritz.gg</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="game-container">
-    <canvas id="gameCanvas"></canvas>
-    <div id="gameOver" class="hidden">
-        <h1>Game Over</h1>
-        <button onclick="restartGame()">Restart</button>
+
+  <!-- Hintergrundvideos -->
+  <video autoplay muted loop id="bg-video" class="bg-video">
+    <source src="Assets/mecoding.mp4" type="video/mp4">
+  </video>
+  <video muted loop id="bg-video-next" class="bg-video hidden">
+    <source src="Assets/mebanger.mp4" type="video/mp4">
+  </video>
+
+  <!-- Hintergrundmusik -->
+  <audio id="bg-music" loop>
+    <source src="Assets/melistening.mp3" type="audio/mpeg">
+  </audio>
+
+  <!-- Slider Container -->
+  <div id="slider" class="hidden">
+
+    <!-- Karte 1 -->
+    <div class="card" data-video="Assets/mecoding.mp4" data-color="#ff66cc" data-cursor="Assets/cursor-pink.cur">
+      <div class="card-header">
+        
+      </div>
+      <p class="card-text">
+        fortnite gamedeveloper (UTC +2)<br>
+        fluent <b>verse</b>, c#, javascript, python and pascal<br>
+        already worked with 
+        <a href="https://fortnite.gg/island?code=4059-2791-0712" class="text_link">@bios trio</a>, 
+        <a href="https://www.youtube.com/@StandartSkill" class="text_link">@stanni</a>, 
+        <a href="https://www.youtube.com/@AANDRE" class="text_link">@aandre</a>, 
+        <a href="https://www.youtube.com/@odumanpique" class="text_link">@oduman</a> 
+        and more.<br><br>
+        verse commissions: <span style="color: rgb(0, 255, 0);"><a href="https://discordapp.com/users/763426964244791312" style="color: inherit; text-decoration: none;">open</a></span>
+      </p>
     </div>
-</div>
-<script src="script.js"></script>
+
+    <!-- Version Label --> 
+    <div id="version">
+      v4.5<span style="font-family: 'Arial', monospace;"><a href="https://www.instagram.com/maria.eis.de" style="color: inherit; text-decoration: none;">❤️</a></span>
+    </div> 
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
