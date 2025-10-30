@@ -1,19 +1,17 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
+const card = document.querySelector(".card");
 
 let DPR = window.devicePixelRatio || 1;
-canvas.width = canvas.clientWidth * DPR;
-canvas.height = canvas.clientHeight * DPR;
-ctx.scale(DPR, DPR);
-
-window.addEventListener("resize", () => {
-  DPR = window.devicePixelRatio || 1;
-  canvas.width = canvas.clientWidth * DPR;
-  canvas.height = canvas.clientHeight * DPR;
+function resizeCanvas() {
+  canvas.width = card.clientWidth * DPR;
+  canvas.height = card.clientHeight * DPR;
   ctx.scale(DPR, DPR);
-});
+}
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
 
-// Spielfeld innerhalb der Karte
+// Spielfeld innerhalb Karte
 const W = canvas.clientWidth;
 const H = canvas.clientHeight;
 
@@ -25,13 +23,14 @@ let foods = [];
 let bots = [];
 let alive = true;
 
+// Spieler
 let head = { x: W/2, y: H/2, ang: 0 };
 let parts = [];
-for (let i=0; i<START_LEN; i++) parts.push({ x: head.x - i*segLen, y: head.y });
+for (let i=0;i<START_LEN;i++) parts.push({ x: head.x - i*segLen, y: head.y });
 
 let target = { x: W/2, y: H/2 };
 
-// Erzeuge Food
+// Food
 for(let i=0;i<50;i++){
   foods.push({ x: Math.random()*W, y: Math.random()*H, size: 6 });
 }
@@ -55,7 +54,6 @@ class Bot{
     moveSnake(this.head,this.parts,this.target,delta,BASE_SPEED*0.9,false);
   }
 }
-
 for(let i=0;i<4;i++) bots.push(new Bot(`hsl(${Math.random()*360},80%,60%)`));
 
 function moveSnake(head,parts,target,delta,speed,playerControlled=true){
@@ -63,7 +61,9 @@ function moveSnake(head,parts,target,delta,speed,playerControlled=true){
   let dy=target.y-head.y;
   const dist=Math.hypot(dx,dy);
 
-  if(playerControlled && dist<5*DPR){ dx=Math.cos(head.ang); dy=Math.sin(head.ang); }
+  if(playerControlled && dist<5*DPR){
+    dx=Math.cos(head.ang); dy=Math.sin(head.ang);
+  }
 
   const desired=Math.atan2(dy,dx);
   let diff=desired-head.ang;
@@ -84,19 +84,21 @@ function moveSnake(head,parts,target,delta,speed,playerControlled=true){
   }
 }
 
+// Ränder innerhalb der Karte
 function wrapPosition(p){
-  if(p.x<0)p.x+=W; if(p.x>W)p.x-=W;
-  if(p.y<0)p.y+=H; if(p.y>H)p.y-=H;
+  if(p.x<0)p.x=0;
+  if(p.x>W)p.x=W;
+  if(p.y<0)p.y=0;
+  if(p.y>H)p.y=H;
 }
 
-let lastTime=performance.now();
+let lastTime = performance.now();
 function step(now=0){
   const delta=(now-lastTime)/16;
   lastTime=now;
 
   if(alive){
     moveSnake(head,parts,target,delta,BASE_SPEED,true);
-
     for(const b of bots) b.update(delta);
   }
 
@@ -114,7 +116,6 @@ function drawSnake(head,parts,color){
     ctx.arc(p.x,p.y,r,0,Math.PI*2);
     ctx.fill();
   }
-  // Kopf
   ctx.save();
   ctx.translate(head.x,head.y);
   ctx.rotate(head.ang);
@@ -141,8 +142,9 @@ requestAnimationFrame(step);
 
 // Steuerung
 canvas.addEventListener("mousemove",e=>{
-  target.x=e.offsetX;
-  target.y=e.offsetY;
+  const rect=canvas.getBoundingClientRect();
+  target.x=e.clientX-rect.left;
+  target.y=e.clientY-rect.top;
 });
 canvas.addEventListener("touchmove",e=>{
   const t=e.touches[0];
@@ -151,11 +153,12 @@ canvas.addEventListener("touchmove",e=>{
   target.y=t.clientY-rect.top;
 },{passive:true});
 
-// Restart-Button (zunächst hidden)
+// Restart-Button hidden
 const restartBtn=document.getElementById("restart");
 restartBtn.addEventListener("click",()=>{
   head={x:W/2,y:H/2,ang:0};
-  parts=[]; for(let i=0;i<START_LEN;i++) parts.push({x:head.x-i*segLen,y:head.y});
+  parts=[];
+  for(let i=0;i<START_LEN;i++) parts.push({x:head.x-i*segLen,y:head.y});
   alive=true;
   restartBtn.classList.add("hidden");
 });
