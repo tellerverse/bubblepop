@@ -14,28 +14,28 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener("resize",resizeCanvas);
 
-const W = canvas.clientWidth;
-const H = canvas.clientHeight;
-
+const W = 2000; // Spielfeld-Breite
+const H = 2000; // Spielfeld-Höhe
 const segLen = 10;
 const START_LEN = 20;
 const BASE_SPEED = 2.2;
 
-let head, parts, target, alive, score, highscore;
+let head, parts, target, alive, score, highscore, camera;
 let foods=[], bots=[];
 
 function init(){
   head={x:W/2,y:H/2,ang:0};
   parts=[];
   for(let i=0;i<START_LEN;i++) parts.push({x:head.x-i*segLen,y:head.y});
-  target={x:W/2,y:H/2};
+  target={x:head.x,y:head.y};
+  camera={x:head.x,y:head.y};
   alive=true;
   score=0;
   if(!highscore) highscore=0;
   foods=[];
-  for(let i=0;i<50;i++) foods.push({x:Math.random()*W, y:Math.random()*H, size:6});
+  for(let i=0;i<100;i++) foods.push({x:Math.random()*W, y:Math.random()*H, size:6});
   bots=[];
-  for(let i=0;i<4;i++) bots.push(new Bot(`hsl(${Math.random()*360},80%,60%)`));
+  for(let i=0;i<6;i++) bots.push(new Bot(`hsl(${Math.random()*360},80%,60%)`));
   restartBtn.classList.add("hidden");
   updateScore();
 }
@@ -46,6 +46,7 @@ class Bot{
     this.parts=Array.from({length:START_LEN},(_,i)=>({x:this.head.x-i*segLen,y:this.head.y}));
     this.color=color;
     this.timer=0;
+    this.target={x:this.head.x,y:this.head.y};
   }
   update(delta){
     this.timer-=delta;
@@ -139,11 +140,11 @@ function drawSnake(head,parts,color){
     const r=segLen*(0.9-0.5*t);
     ctx.beginPath();
     ctx.fillStyle=`hsl(${t*80},80%,60%)`;
-    ctx.arc(p.x,p.y,r,0,2*Math.PI);
+    ctx.arc(p.x-camera.x+canvas.width/2,p.y-camera.y+canvas.height/2,r,0,2*Math.PI);
     ctx.fill();
   }
   ctx.save();
-  ctx.translate(head.x,head.y);
+  ctx.translate(head.x-camera.x+canvas.width/2,head.y-camera.y+canvas.height/2);
   ctx.rotate(head.ang);
   ctx.beginPath();
   ctx.fillStyle=color;
@@ -153,10 +154,10 @@ function drawSnake(head,parts,color){
 }
 
 function render(){
-  ctx.clearRect(0,0,W,H);
+  ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
   for(const f of foods){
     ctx.beginPath();
-    ctx.arc(f.x,f.y,f.size,0,2*Math.PI);
+    ctx.arc(f.x-camera.x+canvas.width/2,f.y-camera.y+canvas.height/2,f.size,0,2*Math.PI);
     ctx.fillStyle="orange";
     ctx.fill();
   }
@@ -177,6 +178,8 @@ function step(now=0){
   if(alive){
     moveSnake(head,parts,target,delta,BASE_SPEED,true);
     for(const b of bots) b.update(delta);
+    camera.x=head.x;
+    camera.y=head.y;
   }
 
   render();
@@ -185,14 +188,14 @@ function step(now=0){
 
 canvas.addEventListener("mousemove",e=>{
   const rect=canvas.getBoundingClientRect();
-  target.x=e.clientX-rect.left;
-  target.y=e.clientY-rect.top;
+  target.x=e.clientX-rect.left + camera.x - canvas.width/2;
+  target.y=e.clientY-rect.top + camera.y - canvas.height/2;
 });
 canvas.addEventListener("touchmove",e=>{
   const t=e.touches[0];
   const rect=canvas.getBoundingClientRect();
-  target.x=t.clientX-rect.left;
-  target.y=t.clientY-rect.top;
+  target.x=t.clientX-rect.left + camera.x - canvas.width/2;
+  target.y=t.clientY-rect.top + camera.y - canvas.height/2;
 },{passive:true});
 
 restartBtn.addEventListener("click",init);
