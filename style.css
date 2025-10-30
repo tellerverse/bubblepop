@@ -1,21 +1,64 @@
-/* Canvas für Bubble-Game */
-#bubble-game {
-  width: 100%;
-  height: 100%;
-  display: block;
-  border-radius: 25px;
-  background: transparent;
-  touch-action: none; /* Für Touch-Steuerung */
+/* game.css - minimal, basiert auf deinem Stil */
+@font-face {
+  font-family: 'Burbank';
+  src: url('Assets/burbankbigcondensed_black.otf') format('opentype');
 }
 
-/* Karte muss relative Position haben */
-.card {
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  justify-content: center;
-  align-items: flex-end; /* Bubble-Schuss startet unten */
-  padding: 0;
+* { box-sizing: border-box; }
+html,body { height:100%; margin:0; font-family: 'Burbank', system-ui, sans-serif; background:#000; color:#fff; overflow:hidden; }
+
+.bg-video {
+  position:fixed; inset:0; width:100%; height:100%; object-fit:cover; z-index:-2; filter:brightness(.6);
 }
 
-/* Bubble-Style (wird im JS gezeichnet) */
+/* Card (single) */
+.game-card {
+  position: absolute;
+  top:50%; left:50%;
+  transform: translate(-50%,-50%);
+  width: min(95vw, 780px);
+  border-radius: 22px;
+  padding: 20px;
+  background: rgba(0,0,0,0.45);
+  border: 2px solid #ff66cc;
+  backdrop-filter: blur(18px);
+  display:flex; flex-direction:column; gap:12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+}
+
+/* header */
+.card-header { display:flex; gap:14px; align-items:center; }
+.profile-pic { width:80px; height:80px; border-radius:50%; object-fit:cover; border:2px solid; }
+.header-info h1 { margin:0; font-size:1.6rem; color:inherit; }
+.header-info .sub { font-size:0.9rem; opacity:0.85; }
+
+/* canvas wrapper */
+.canvas-wrap {
+  position:relative;
+  width:100%;
+  aspect-ratio: 16 / 9;
+  border-radius:14px;
+  overflow:hidden;
+  display:flex; align-items:center; justify-content:center;
+  background: linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.45));
+  border: 1px solid rgba(255,255,255,0.03);
+}
+
+canvas { width:100%; height:100%; display:block; touch-action:none; }
+
+#hud {
+  position:absolute; top:10px; left:10px; display:flex; gap:10px; align-items:center; z-index:5;
+}
+#score, #best { background: rgba(0,0,0,0.4); padding:6px 10px; border-radius:8px; font-weight:700; }
+.small-btn { background: rgba(255,255,255,0.08); color:#fff; border:none; padding:6px 10px; border-radius:8px; cursor:pointer; }
+
+/* footer controls */
+.card-text { margin:0; font-size:0.95rem; opacity:0.9; }
+.card-play-btn.small { width:120px; padding:10px; border-radius:12px; background:#ff66cc; border:none; color:#fff; font-weight:800; cursor:pointer; }
+
+/* responsive adjust */
+@media (max-width:600px) {
+  .game-card { width:94vw; padding:14px; border-radius:16px; }
+  .profile-pic { width:64px; height:64px; }
+  .header-info h1 { font-size:1.2rem; }
+}

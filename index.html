@@ -1,51 +1,42 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>moritz.gg Bubble Game</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>moritz.gg — Playground</title>
+  <link rel="stylesheet" href="game.css">
 </head>
 <body>
-
-  <!-- Hintergrundvideos -->
+  <!-- Hintergrundvideo (nutze deine Assets) -->
   <video autoplay muted loop id="bg-video" class="bg-video">
     <source src="Assets/mecoding.mp4" type="video/mp4">
   </video>
-  <video muted loop id="bg-video-next" class="bg-video hidden">
-    <source src="Assets/mebanger.mp4" type="video/mp4">
-  </video>
 
-  <!-- Hintergrundmusik -->
-  <audio id="bg-music" loop>
-    <source src="Assets/melistening.mp3" type="audio/mpeg">
-  </audio>
-
-  <!-- Intro Overlay -->
-  <div id="intro">
-    <div class="center-text">Click</div>
-  </div>
-
-  <!-- Slider Container -->
-  <div id="slider" class="hidden">
-
-    <!-- Karte 1 – Bubble-Spiel-Karte -->
-    <div class="card" data-video="Assets/mecoding.mp4" data-color="#ff66cc" data-cursor="Assets/cursor-pink.cur">
-      <canvas id="bubble-game"></canvas>
+  <!-- Einzige Karte in der Mitte -->
+  <div class="card game-card" role="main" aria-label="Game card">
+    <div class="card-header">
+      <img src="Assets/medeving.jpg" class="profile-pic" alt="moritz">
+      <div class="header-info">
+        <h1 class="underline-animate">slither — singleplayer</h1>
+        <div class="sub">WASD / Maus / Touch — Halten = Boost</div>
+      </div>
     </div>
 
-    <!-- Switch Button -->
-    <button id="switch" class="switch-btn">
-      <img src="Assets/buttoncontent.png" alt="switch" class="switch-icon">
-    </button>
+    <div class="canvas-wrap">
+      <canvas id="game-canvas"></canvas>
+      <div id="hud">
+        <div id="score">Score: 0</div>
+        <div id="best">Best: 0</div>
+        <button id="restart" class="small-btn">Restart</button>
+      </div>
+    </div>
 
-    <!-- Version Label --> 
-    <div id="version">
-      v4.5<span style="font-family: 'Arial', monospace;"><a href="https://www.instagram.com/maria.eis.de" style="color: inherit; text-decoration: none;">❤️</a></span>
-    </div> 
+    <p class="card-text small">
+      Mobil-optimiert. Boost kostet Länge. Ziel: so groß wie möglich werden.
+    </p>
+    <button id="back" class="card-play-btn small">Zurück</button>
   </div>
 
-  <script src="script.js"></script>
-  <script src="bubblegame.js"></script>
+  <script src="game.js"></script>
 </body>
 </html>
