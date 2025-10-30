@@ -1,40 +1,48 @@
-// game.js - schlank, performant, responsive Slither-like singleplayer
+// game.js — canvas ist genau in der Card, DPI-aware, touch + mouse + keys
 (() => {
   const canvas = document.getElementById('game-canvas');
+  const wrap = document.getElementById('canvas-wrap');
   const ctx = canvas.getContext('2d', { alpha: false });
+
   const scoreEl = document.getElementById('score');
   const bestEl = document.getElementById('best');
   const restartBtn = document.getElementById('restart');
   const backBtn = document.getElementById('back');
 
   // settings
-  const BASE_SPEED = 2.1;
+  const BASE_SPEED = 2.2;
   const BOOST_MULT = 2.2;
-  const SEG_GAP = 6;           // px between segments (visual)
-  const START_LEN = 36;        // initial segments
+  const SEG_GAP = 6;
+  const START_LEN = 36;
   const FOOD_COUNT = 28;
   const FOOD_RAD = 4;
   const FOOD_VALUE = 6;
-  const BOOST_COST = 0.09;     // loss rate
+  const BOOST_COST = 0.09;
   const TURN_SPEED = 0.14;
 
   let DPR = Math.max(1, window.devicePixelRatio || 1);
   let W = 800 * DPR, H = 450 * DPR;
 
-  function resize() {
-    const rect = canvas.getBoundingClientRect();
+  function resizeCanvasToWrap() {
+    const rect = wrap.getBoundingClientRect();
     DPR = Math.max(1, window.devicePixelRatio || 1);
     W = Math.max(320, Math.floor(rect.width * DPR));
-    H = Math.max(200, Math.floor(rect.height * DPR));
-    canvas.width = W; canvas.height = H;
+    H = Math.max(160, Math.floor(rect.height * DPR));
+    canvas.width = W;
+    canvas.height = H;
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
     ctx.setTransform(1,0,0,1,0,0);
     ctx.imageSmoothingEnabled = true;
   }
-  new ResizeObserver(resize).observe(canvas);
-  resize();
+
+  // observe wrapper size changes (card resizing, responsive)
+  new ResizeObserver(resizeCanvasToWrap).observe(wrap);
+  // also on load
+  resizeCanvasToWrap();
 
   // game state
-  let head = { x: W/2, y: H/2, ang: 0, speed: BASE_SPEED * DPR };
+  let head = { x: W/2, y: H/2, ang: 0 };
   let target = { x: head.x, y: head.y };
   let parts = [];
   let segLen = SEG_GAP * DPR;
@@ -46,7 +54,6 @@
   const BEST_KEY = 'mg_slither_best_v1';
   let best = parseInt(localStorage.getItem(BEST_KEY) || '0', 10);
 
-  // init snake
   function initSnake() {
     parts = [];
     for (let i=0;i<START_LEN;i++){
@@ -58,8 +65,8 @@
     updateHUD();
   }
 
-  function spawnFood(n=FOOD_COUNT){
-    while(foods.length < n) foods.push(randFood());
+  function spawnFood(n = FOOD_COUNT) {
+    while (foods.length < n) foods.push(randFood());
   }
   function randFood(){
     const margin = 24 * DPR;
@@ -70,117 +77,119 @@
     };
   }
 
-  // Input
-  let keys = {left:false,right:false,up:false,down:false};
+  // input handling (mouse/touch/keyboard)
+  const keys = { left:false, right:false, up:false, down:false };
   window.addEventListener('keydown', e=>{
-    if(e.key==='a'||e.key==='ArrowLeft') keys.left=true;
-    if(e.key==='d'||e.key==='ArrowRight') keys.right=true;
-    if(e.key==='w'||e.key==='ArrowUp') keys.up=true;
-    if(e.key==='s'||e.key==='ArrowDown') keys.down=true;
-    if(e.key===' ') boosting=true;
+    if (['a','ArrowLeft'].includes(e.key)) keys.left=true;
+    if (['d','ArrowRight'].includes(e.key)) keys.right=true;
+    if (['w','ArrowUp'].includes(e.key)) keys.up=true;
+    if (['s','ArrowDown'].includes(e.key)) keys.down=true;
+    if (e.key === ' ') boosting = true;
   });
   window.addEventListener('keyup', e=>{
-    if(e.key==='a'||e.key==='ArrowLeft') keys.left=false;
-    if(e.key==='d'||e.key==='ArrowRight') keys.right=false;
-    if(e.key==='w'||e.key==='ArrowUp') keys.up=false;
-    if(e.key==='s'||e.key==='ArrowDown') keys.down=false;
-    if(e.key===' ') boosting=false;
+    if (['a','ArrowLeft'].includes(e.key)) keys.left=false;
+    if (['d','ArrowRight'].includes(e.key)) keys.right=false;
+    if (['w','ArrowUp'].includes(e.key)) keys.up=false;
+    if (['s','ArrowDown'].includes(e.key)) keys.down=false;
+    if (e.key === ' ') boosting = false;
   });
 
-  // mouse/touch
-  canvas.addEventListener('mousemove', e=>{
-    const r = canvas.getBoundingClientRect();
-    target.x = (e.clientX - r.left) * DPR;
-    target.y = (e.clientY - r.top) * DPR;
-  });
-  canvas.addEventListener('mousedown',()=> boosting = true);
-  window.addEventListener('mouseup',()=> boosting = false);
+  // pointer inside wrapper coordinates
+  function setTargetFromEvent(clientX, clientY) {
+    const r = wrap.getBoundingClientRect();
+    const x = (clientX - r.left) * DPR;
+    const y = (clientY - r.top) * DPR;
+    target.x = Math.max(0, Math.min(W, x));
+    target.y = Math.max(0, Math.min(H, y));
+  }
 
-  canvas.addEventListener('touchstart', e=>{
+  wrap.addEventListener('mousemove', e => {
+    setTargetFromEvent(e.clientX, e.clientY);
+  });
+  wrap.addEventListener('mousedown', e => { boosting = true; setTargetFromEvent(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', () => boosting = false);
+
+  wrap.addEventListener('touchstart', e => {
     e.preventDefault();
     boosting = true;
     const t = e.touches[0];
-    const r = canvas.getBoundingClientRect();
-    target.x = (t.clientX - r.left) * DPR;
-    target.y = (t.clientY - r.top) * DPR;
-  }, {passive:false});
-  canvas.addEventListener('touchmove', e=>{
+    setTargetFromEvent(t.clientX, t.clientY);
+  }, { passive: false });
+  wrap.addEventListener('touchmove', e => {
     e.preventDefault();
-    const t = e.touches[0]; const r = canvas.getBoundingClientRect();
-    target.x = (t.clientX - r.left) * DPR;
-    target.y = (t.clientY - r.top) * DPR;
-  }, {passive:false});
-  canvas.addEventListener('touchend', e=>{ boosting = false; }, {passive:false});
+    const t = e.touches[0];
+    setTargetFromEvent(t.clientX, t.clientY);
+  }, { passive: false });
+  wrap.addEventListener('touchend', e => { boosting = false; }, { passive: false });
 
-  // HUD
-  function updateHUD(){
+  // HUD updater
+  function updateHUD() {
     scoreEl.textContent = `Score: ${Math.max(0, Math.floor(score))}`;
     bestEl.textContent = `Best: ${best}`;
   }
 
-  // game update
+  // game loop
   let last = 0;
-  function step(ts){
-    if(!last) last = ts;
+  function step(ts) {
+    if (!last) last = ts;
     const dt = Math.min(40, ts - last);
     last = ts;
     const delta = dt / 16.67;
 
     keyboardTarget(delta);
 
-    if(alive) updateGame(delta);
+    if (alive) updateGame(delta);
     render();
     requestAnimationFrame(step);
   }
 
-  function keyboardTarget(delta){
+  function keyboardTarget(delta) {
     const v = 8 * DPR;
-    if(keys.left) target.x -= v * delta;
-    if(keys.right) target.x += v * delta;
-    if(keys.up) target.y -= v * delta;
-    if(keys.down) target.y += v * delta;
+    if (keys.left) target.x -= v * delta;
+    if (keys.right) target.x += v * delta;
+    if (keys.up) target.y -= v * delta;
+    if (keys.down) target.y += v * delta;
   }
 
-  function updateGame(delta){
-    // rotate head smoothly toward target
+  function updateGame(delta) {
+    // rotate head toward target
     let dx = target.x - head.x;
     let dy = target.y - head.y;
     const desired = Math.atan2(dy, dx);
     let diff = desired - head.ang;
-    while(diff > Math.PI) diff -= Math.PI*2;
-    while(diff < -Math.PI) diff += Math.PI*2;
+    while (diff > Math.PI) diff -= Math.PI*2;
+    while (diff < -Math.PI) diff += Math.PI*2;
     head.ang += Math.max(-TURN_SPEED, Math.min(TURN_SPEED, diff));
 
-    // speed
+    // move head
     const base = BASE_SPEED * DPR;
     const speed = boosting ? base * BOOST_MULT : base;
-
     head.x += Math.cos(head.ang) * speed * delta;
     head.y += Math.sin(head.ang) * speed * delta;
 
-    // screen wrap for continuous arena feel
-    if(head.x < 0) head.x += W;
-    if(head.x > W) head.x -= W;
-    if(head.y < 0) head.y += H;
-    if(head.y > H) head.y -= H;
+    // wrap
+    if (head.x < 0) head.x += W;
+    if (head.x > W) head.x -= W;
+    if (head.y < 0) head.y += H;
+    if (head.y > H) head.y -= H;
 
-    // move segments (each follows previous at segLen)
+    // move parts
     let prev = { x: head.x, y: head.y };
-    for(let i=0;i<parts.length;i++){
+    for (let i=0;i<parts.length;i++){
       const p = parts[i];
       const vx = prev.x - p.x;
       const vy = prev.y - p.y;
-      const d = Math.hypot(vx,vy) || 0.0001;
+      const d = Math.hypot(vx, vy) || 0.0001;
       const nx = prev.x - (vx / d) * segLen;
       const ny = prev.y - (vy / d) * segLen;
       p.x = nx; p.y = ny;
       prev = p;
     }
 
-    // grow pending
-    if(pendingGrow > 0){
+    // grow
+    if (pendingGrow > 0) {
       const add = Math.min(3, pendingGrow);
-      for(let i=0;i<add;i++){
+      for (let i=0;i<add;i++){
         const last = parts[parts.length-1];
         parts.push({ x: last.x, y: last.y });
         pendingGrow--;
@@ -189,42 +198,37 @@
     }
 
     // boost cost
-    if(boosting && parts.length > 8){
-      // probabilistic length loss
+    if (boosting && parts.length > 8) {
       const loss = BOOST_COST * delta;
-      if(Math.random() < loss) { parts.pop(); score = Math.max(0, score - 1); }
+      if (Math.random() < loss) { parts.pop(); score = Math.max(0, score - 1); }
     }
 
-    // foods collision (head)
-    const headR = Math.max(6 * DPR, segLen * 0.9);
-    for(let i=foods.length-1;i>=0;i--){
+    // foods collision
+    const headR = Math.max(6*DPR, segLen*0.9);
+    for (let i = foods.length - 1; i >= 0; i--) {
       const f = foods[i];
       const d2 = (head.x - f.x)*(head.x - f.x) + (head.y - f.y)*(head.y - f.y);
-      if(d2 < (headR + f.r)*(headR + f.r)){
+      if (d2 < (headR + f.r)*(headR + f.r)) {
         foods.splice(i,1);
         pendingGrow += FOOD_VALUE;
         score += FOOD_VALUE;
       }
     }
-    if(foods.length < FOOD_COUNT) spawnFood(FOOD_COUNT);
+    if (foods.length < FOOD_COUNT) spawnFood(FOOD_COUNT);
 
-    // self-collision (head vs body segments from index 10)
+    // self collision (skip first few segments)
     const hitR2 = (Math.max(6*DPR, segLen*0.8))**2;
-    for(let i=10;i<parts.length;i++){
+    for (let i=10;i<parts.length;i++){
       const p = parts[i];
       const d2 = (head.x-p.x)*(head.x-p.x) + (head.y-p.y)*(head.y-p.y);
-      if(d2 < hitR2){
-        alive = false;
-        onGameOver();
-        break;
-      }
+      if (d2 < hitR2) { alive = false; onGameOver(); break; }
     }
 
     updateHUD();
   }
 
-  function spawnFood(targetCount){
-    while(foods.length < targetCount) foods.push(randFood());
+  function spawnFood(n){
+    while (foods.length < n) foods.push(randFood());
   }
   function randFood(){
     const margin = 28 * DPR;
@@ -237,41 +241,37 @@
 
   function onGameOver(){
     const s = Math.floor(score);
-    if(s > best){ best = s; localStorage.setItem(BEST_KEY, ''+best); }
+    if (s > best) { best = s; localStorage.setItem(BEST_KEY, ''+best); }
     updateHUD();
   }
 
-  // rendering
-  function render(){
+  // render
+  function render() {
     // clear
-    ctx.fillStyle = '#071218';
+    ctx.fillStyle = '#081218';
     ctx.fillRect(0,0,W,H);
 
     // foods
-    for(const f of foods){
+    for (const f of foods){
       ctx.beginPath();
       ctx.fillStyle = '#ffd84a';
       ctx.arc(f.x, f.y, f.r, 0, Math.PI*2);
       ctx.fill();
       ctx.globalAlpha = 0.12;
       ctx.beginPath();
-      ctx.arc(f.x, f.y, f.r*2.5, 0, Math.PI*2);
+      ctx.arc(f.x, f.y, f.r*2.6, 0, Math.PI*2);
       ctx.fillStyle = '#ffd84a';
       ctx.fill();
       ctx.globalAlpha = 1;
     }
 
-    // body from tail->head
-    for(let i=parts.length-1;i>=0;i--){
+    // body
+    for (let i = parts.length-1; i >= 0; i--){
       const p = parts[i];
       const t = i / parts.length;
       const r = Math.max(2*DPR, segLen * (0.9 - t*0.55));
       ctx.beginPath();
-      // simple color gradient by t
-      const g = ctx.createLinearGradient(0,0,W,0);
-      g.addColorStop(0, `rgba(${Math.floor(45 + 210*t)},${Math.floor(226 - 100*t)},120,1)`);
-      g.addColorStop(1, `rgba(255,${Math.floor(102 + 50*t)},${Math.floor(204 - 70*t)},1)`);
-      ctx.fillStyle = `rgba(${Math.floor(200*(1-t))}, ${Math.floor(100+155*t)}, ${Math.floor(150+55*t)}, 1)`;
+      ctx.fillStyle = `rgba(${Math.floor(200*(1-t))}, ${Math.floor(80+170*t)}, ${Math.floor(120+80*t)}, 1)`;
       ctx.arc(p.x, p.y, r, 0, Math.PI*2);
       ctx.fill();
     }
@@ -283,30 +283,29 @@
     ctx.rotate(head.ang);
     ctx.beginPath();
     ctx.fillStyle = '#fff';
-    ctx.arc(0,0,headR,0,Math.PI*2);
+    ctx.arc(0,0, headR, 0, Math.PI*2);
     ctx.fill();
-    // eyes
     ctx.fillStyle = '#111';
     const eyeX = headR * 0.5;
-    ctx.beginPath(); ctx.arc(eyeX, -headR*0.35, Math.max(1.6*DPR, headR*0.28), 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(eyeX, headR*0.35, Math.max(1.6*DPR, headR*0.28), 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(eyeX, -headR*0.34, Math.max(1.6*DPR, headR*0.28), 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(eyeX, headR*0.34, Math.max(1.6*DPR, headR*0.28), 0, Math.PI*2); ctx.fill();
     ctx.restore();
 
-    // overlay if dead
-    if(!alive){
+    // dead overlay
+    if (!alive) {
       ctx.fillStyle = 'rgba(0,0,0,0.45)';
       ctx.fillRect(0,0,W,H);
       ctx.fillStyle = '#fff';
       ctx.textAlign = 'center';
-      ctx.font = `${Math.floor(32*DPR)}px sans-serif`;
-      ctx.fillText('Game Over', W/2, H/2 - 12*DPR);
-      ctx.font = `${Math.floor(18*DPR)}px sans-serif`;
+      ctx.font = `${Math.floor(28*DPR)}px sans-serif`;
+      ctx.fillText('Game Over', W/2, H/2 - 10*DPR);
+      ctx.font = `${Math.floor(16*DPR)}px sans-serif`;
       ctx.fillText(`Score: ${Math.floor(score)}`, W/2, H/2 + 18*DPR);
     }
   }
 
-  // restart/back handlers
-  restartBtn.addEventListener('click', ()=>{
+  // controls
+  restartBtn.addEventListener('click', ()=> {
     alive = true;
     head.x = W/2; head.y = H/2; head.ang = 0;
     target.x = head.x; target.y = head.y;
@@ -315,7 +314,7 @@
   backBtn.addEventListener('click', ()=> window.history.back());
 
   // start
-  function start(){
+  function start() {
     head.x = W/2; head.y = H/2;
     target.x = head.x; target.y = head.y;
     initSnake();
@@ -325,6 +324,6 @@
   }
   start();
 
-  // expose for quick console tweaks
-  window.__SLITHER = { parts, foods, head, setBoost: b=> boosting=b };
+  // quick inspect in console if needed
+  window.__SLITHER = { parts, foods, head, setBoost: b => boosting = b };
 })();
