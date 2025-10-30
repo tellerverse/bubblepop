@@ -1,384 +1,329 @@
-// game.js - Slither-like singleplayer
+// game.js — canvas ist genau in der Card, DPI-aware, touch + mouse + keys
 (() => {
   const canvas = document.getElementById('game-canvas');
+  const wrap = document.getElementById('canvas-wrap');
   const ctx = canvas.getContext('2d', { alpha: false });
+
   const scoreEl = document.getElementById('score');
   const bestEl = document.getElementById('best');
   const restartBtn = document.getElementById('restart');
   const backBtn = document.getElementById('back');
 
-  // --- settings (quick tweakables) ---
-  const BASE_SPEED = 2.0;         // base forward speed
-  const BOOST_MULT = 2.2;         // boost multiplier
-  const SEGMENT_GAP = 6;          // pixels between segment centers
-  const START_SEGMENTS = 40;      // initial segments
-  const FOOD_COUNT = 30;          // simultaneous foods
-  const FOOD_RADIUS = 4;         // base radius for small food
-  const FOOD_VALUE = 6;          // how many segments to grow per food
-  const LOSS_RATE_BOOST = 0.08;   // length loss per frame when boosting
-  const TURN_RATE = 0.12;         // how fast head turns towards target (radians per frame)
-  const MIN_CANVAS = 300;
+  // settings
+  const BASE_SPEED = 2.2;
+  const BOOST_MULT = 2.2;
+  const SEG_GAP = 6;
+  const START_LEN = 36;
+  const FOOD_COUNT = 28;
+  const FOOD_RAD = 4;
+  const FOOD_VALUE = 6;
+  const BOOST_COST = 0.09;
+  const TURN_SPEED = 0.14;
 
-  let width = 800, height = 450;
-  let devicePixelRatio = Math.max(1, window.devicePixelRatio || 1);
+  let DPR = Math.max(1, window.devicePixelRatio || 1);
+  let W = 800 * DPR, H = 450 * DPR;
 
-  function resizeCanvas() {
-    const rect = canvas.getBoundingClientRect();
-    devicePixelRatio = Math.max(1, window.devicePixelRatio || 1);
-    width = Math.max(MIN_CANVAS, Math.floor(rect.width * devicePixelRatio));
-    height = Math.max(200, Math.floor(rect.height * devicePixelRatio));
-    canvas.width = width;
-    canvas.height = height;
+  function resizeCanvasToWrap() {
+    const rect = wrap.getBoundingClientRect();
+    DPR = Math.max(1, window.devicePixelRatio || 1);
+    W = Math.max(320, Math.floor(rect.width * DPR));
+    H = Math.max(160, Math.floor(rect.height * DPR));
+    canvas.width = W;
+    canvas.height = H;
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
     ctx.setTransform(1,0,0,1,0,0);
     ctx.imageSmoothingEnabled = true;
   }
-  new ResizeObserver(resizeCanvas).observe(canvas);
-  resizeCanvas();
 
-  // --- game state ---
-  let parts = []; // array of points {x,y}
-  let segmentLength = SEGMENT_GAP * devicePixelRatio;
-  let head = { x: width/2, y: height/2, angle: 0, speed: BASE_SPEED * devicePixelRatio };
+  // observe wrapper size changes (card resizing, responsive)
+  new ResizeObserver(resizeCanvasToWrap).observe(wrap);
+  // also on load
+  resizeCanvasToWrap();
+
+  // game state
+  let head = { x: W/2, y: H/2, ang: 0 };
   let target = { x: head.x, y: head.y };
-  let targetAngle = 0;
+  let parts = [];
+  let segLen = SEG_GAP * DPR;
   let boosting = false;
-  let pendingGrow = 0; // segments to add
+  let pendingGrow = 0;
   let foods = [];
   let alive = true;
-  let frameCount = 0;
   let score = 0;
-
-  const BEST_KEY = 'slither_single_best_v1';
+  const BEST_KEY = 'mg_slither_best_v1';
   let best = parseInt(localStorage.getItem(BEST_KEY) || '0', 10);
-  bestEl.textContent = `Best: ${best}`;
 
-  // initialize snake segments (line behind head)
   function initSnake() {
     parts = [];
-    const n = START_SEGMENTS;
-    for (let i = 0; i < n; i++) {
-      parts.push({ x: head.x - i * segmentLength, y: head.y });
+    for (let i=0;i<START_LEN;i++){
+      parts.push({ x: head.x - i*segLen, y: head.y });
     }
     pendingGrow = 0;
-    score = n;
+    score = parts.length;
+    alive = true;
     updateHUD();
   }
 
-  // spawn foods
-  function spawnFoods(n) {
-    for (let i = 0; i < n; i++) {
-      foods.push(randomFood());
-    }
+  function spawnFood(n = FOOD_COUNT) {
+    while (foods.length < n) foods.push(randFood());
   }
-  function randomFood() {
-    // avoid spawning too close to edges or head
-    const margin = 20 * devicePixelRatio;
+  function randFood(){
+    const margin = 24 * DPR;
     return {
-      x: margin + Math.random() * (width - 2*margin),
-      y: margin + Math.random() * (height - 2*margin),
-      r: FOOD_RADIUS * devicePixelRatio * (0.8 + Math.random() * 1.6)
+      x: margin + Math.random() * (W - margin*2),
+      y: margin + Math.random() * (H - margin*2),
+      r: FOOD_RAD * DPR * (0.8 + Math.random()*1.6)
     };
   }
 
-  // input handlers
-  let mouseDown = false;
-  canvas.addEventListener('mousemove', e => {
-    const r = canvas.getBoundingClientRect();
-    const mx = (e.clientX - r.left) * devicePixelRatio;
-    const my = (e.clientY - r.top) * devicePixelRatio;
-    target.x = mx; target.y = my;
+  // input handling (mouse/touch/keyboard)
+  const keys = { left:false, right:false, up:false, down:false };
+  window.addEventListener('keydown', e=>{
+    if (['a','ArrowLeft'].includes(e.key)) keys.left=true;
+    if (['d','ArrowRight'].includes(e.key)) keys.right=true;
+    if (['w','ArrowUp'].includes(e.key)) keys.up=true;
+    if (['s','ArrowDown'].includes(e.key)) keys.down=true;
+    if (e.key === ' ') boosting = true;
   });
-  canvas.addEventListener('mousedown', e => { mouseDown = true; boosting = true; });
-  canvas.addEventListener('mouseup', e => { mouseDown = false; boosting = false; });
-  canvas.addEventListener('mouseleave', e => { /* optional */ });
+  window.addEventListener('keyup', e=>{
+    if (['a','ArrowLeft'].includes(e.key)) keys.left=false;
+    if (['d','ArrowRight'].includes(e.key)) keys.right=false;
+    if (['w','ArrowUp'].includes(e.key)) keys.up=false;
+    if (['s','ArrowDown'].includes(e.key)) keys.down=false;
+    if (e.key === ' ') boosting = false;
+  });
 
-  // touch
-  canvas.addEventListener('touchstart', e => {
+  // pointer inside wrapper coordinates
+  function setTargetFromEvent(clientX, clientY) {
+    const r = wrap.getBoundingClientRect();
+    const x = (clientX - r.left) * DPR;
+    const y = (clientY - r.top) * DPR;
+    target.x = Math.max(0, Math.min(W, x));
+    target.y = Math.max(0, Math.min(H, y));
+  }
+
+  wrap.addEventListener('mousemove', e => {
+    setTargetFromEvent(e.clientX, e.clientY);
+  });
+  wrap.addEventListener('mousedown', e => { boosting = true; setTargetFromEvent(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', () => boosting = false);
+
+  wrap.addEventListener('touchstart', e => {
     e.preventDefault();
     boosting = true;
     const t = e.touches[0];
-    const r = canvas.getBoundingClientRect();
-    target.x = (t.clientX - r.left) * devicePixelRatio;
-    target.y = (t.clientY - r.top) * devicePixelRatio;
+    setTargetFromEvent(t.clientX, t.clientY);
   }, { passive: false });
-  canvas.addEventListener('touchmove', e => {
+  wrap.addEventListener('touchmove', e => {
     e.preventDefault();
     const t = e.touches[0];
-    const r = canvas.getBoundingClientRect();
-    target.x = (t.clientX - r.left) * devicePixelRatio;
-    target.y = (t.clientY - r.top) * devicePixelRatio;
+    setTargetFromEvent(t.clientX, t.clientY);
   }, { passive: false });
-  canvas.addEventListener('touchend', e => {
-    boosting = false;
-  });
+  wrap.addEventListener('touchend', e => { boosting = false; }, { passive: false });
 
-  // keyboard (optional)
-  const keyDir = { up: false, down:false, left:false, right:false };
-  window.addEventListener('keydown', e => {
-    if (e.key === 'w' || e.key === 'ArrowUp') keyDir.up = true;
-    if (e.key === 's' || e.key === 'ArrowDown') keyDir.down = true;
-    if (e.key === 'a' || e.key === 'ArrowLeft') keyDir.left = true;
-    if (e.key === 'd' || e.key === 'ArrowRight') keyDir.right = true;
-    if (e.key === ' ') boosting = true;
-  });
-  window.addEventListener('keyup', e => {
-    if (e.key === 'w' || e.key === 'ArrowUp') keyDir.up = false;
-    if (e.key === 's' || e.key === 'ArrowDown') keyDir.down = false;
-    if (e.key === 'a' || e.key === 'ArrowLeft') keyDir.left = false;
-    if (e.key === 'd' || e.key === 'ArrowRight') keyDir.right = false;
-    if (e.key === ' ' ) boosting = false;
-  });
-
-  // manage target for keyboard
-  function keyboardTargetAdjust() {
-    const speed = 8 * devicePixelRatio;
-    if (keyDir.up) target.y -= speed;
-    if (keyDir.down) target.y += speed;
-    if (keyDir.left) target.x -= speed;
-    if (keyDir.right) target.x += speed;
-  }
-
-  // update HUD
+  // HUD updater
   function updateHUD() {
     scoreEl.textContent = `Score: ${Math.max(0, Math.floor(score))}`;
     bestEl.textContent = `Best: ${best}`;
   }
 
-  // collision helpers
-  function dist2(a,b) { const dx=a.x-b.x, dy=a.y-b.y; return dx*dx+dy*dy; }
-  function dist(a,b) { return Math.sqrt(dist2(a,b)); }
+  // game loop
+  let last = 0;
+  function step(ts) {
+    if (!last) last = ts;
+    const dt = Math.min(40, ts - last);
+    last = ts;
+    const delta = dt / 16.67;
 
-  // game loop variables
-  let lastTime = 0;
-  function frame(t) {
-    if (!lastTime) lastTime = t;
-    const dt = Math.min(40, t - lastTime);
-    lastTime = t;
-    if (alive) {
-      update(dt/16.67); // normalized ~60fps
-    }
+    keyboardTarget(delta);
+
+    if (alive) updateGame(delta);
     render();
-    frameCount++;
-    requestAnimationFrame(frame);
+    requestAnimationFrame(step);
   }
 
-  // update game state
-  function update(delta) {
-    keyboardTargetAdjust();
+  function keyboardTarget(delta) {
+    const v = 8 * DPR;
+    if (keys.left) target.x -= v * delta;
+    if (keys.right) target.x += v * delta;
+    if (keys.up) target.y -= v * delta;
+    if (keys.down) target.y += v * delta;
+  }
 
-    // angle to target
-    const dx = target.x - head.x;
-    const dy = target.y - head.y;
+  function updateGame(delta) {
+    // rotate head toward target
+    let dx = target.x - head.x;
+    let dy = target.y - head.y;
     const desired = Math.atan2(dy, dx);
-    // normalize angle diff
-    let diff = desired - head.angle;
+    let diff = desired - head.ang;
     while (diff > Math.PI) diff -= Math.PI*2;
     while (diff < -Math.PI) diff += Math.PI*2;
-    // clamp turning
-    head.angle += Math.max(-TURN_RATE, Math.min(TURN_RATE, diff));
+    head.ang += Math.max(-TURN_SPEED, Math.min(TURN_SPEED, diff));
 
-    // speed
-    const baseSpeed = BASE_SPEED * devicePixelRatio;
-    const speed = boosting ? baseSpeed * BOOST_MULT : baseSpeed;
-    head.speed = speed;
+    // move head
+    const base = BASE_SPEED * DPR;
+    const speed = boosting ? base * BOOST_MULT : base;
+    head.x += Math.cos(head.ang) * speed * delta;
+    head.y += Math.sin(head.ang) * speed * delta;
 
-    // move head forward
-    head.x += Math.cos(head.angle) * head.speed * delta;
-    head.y += Math.sin(head.angle) * head.speed * delta;
+    // wrap
+    if (head.x < 0) head.x += W;
+    if (head.x > W) head.x -= W;
+    if (head.y < 0) head.y += H;
+    if (head.y > H) head.y -= H;
 
-    // wrap-around screen edges (like slither)
-    if (head.x < 0) head.x += width;
-    if (head.x > width) head.x -= width;
-    if (head.y < 0) head.y += height;
-    if (head.y > height) head.y -= height;
-
-    // move segments: each segment follows previous maintaining SEGMENT_GAP
+    // move parts
     let prev = { x: head.x, y: head.y };
-    for (let i = 0; i < parts.length; i++) {
+    for (let i=0;i<parts.length;i++){
       const p = parts[i];
-      const dx = prev.x - p.x;
-      const dy = prev.y - p.y;
-      const d = Math.sqrt(dx*dx + dy*dy) || 0.0001;
-      const need = (segmentLength);
-      if (d > 0.0001) {
-        const ratio = (d - need) / d;
-        p.x = prev.x - dx * (need / d);
-        p.y = prev.y - dy * (need / d);
-      }
+      const vx = prev.x - p.x;
+      const vy = prev.y - p.y;
+      const d = Math.hypot(vx, vy) || 0.0001;
+      const nx = prev.x - (vx / d) * segLen;
+      const ny = prev.y - (vy / d) * segLen;
+      p.x = nx; p.y = ny;
       prev = p;
     }
 
-    // grow if pending
+    // grow
     if (pendingGrow > 0) {
-      // push duplicates of last part to grow smoothly
-      for (let k = 0; k < Math.min(4, pendingGrow); k++) {
-        const last = parts[parts.length - 1];
+      const add = Math.min(3, pendingGrow);
+      for (let i=0;i<add;i++){
+        const last = parts[parts.length-1];
         parts.push({ x: last.x, y: last.y });
         pendingGrow--;
         score++;
       }
     }
 
-    // boost cost: lose segments slowly
-    if (boosting && parts.length > 6) {
-      if (frameCount % 2 === 0) { // rate control
-        const loss = LOSS_RATE_BOOST * devicePixelRatio * delta;
-        // remove approximate number of segments proportional to loss
-        if (loss > 0.5) {
-          const drop = Math.floor(loss);
-          parts.splice(-drop, drop);
-          score = Math.max(0, score - drop);
-        } else if (Math.random() < loss) {
-          parts.pop(); score = Math.max(0, score - 1);
-        }
-      }
+    // boost cost
+    if (boosting && parts.length > 8) {
+      const loss = BOOST_COST * delta;
+      if (Math.random() < loss) { parts.pop(); score = Math.max(0, score - 1); }
     }
 
-    // foods: collision with head (use head radius dependent on size)
-    const headRadius = Math.max(6, segmentLength * 0.9);
+    // foods collision
+    const headR = Math.max(6*DPR, segLen*0.9);
     for (let i = foods.length - 1; i >= 0; i--) {
       const f = foods[i];
-      const d2 = (head.x - f.x)*(head.x-f.x) + (head.y - f.y)*(head.y-f.y);
-      if (d2 < (headRadius + f.r) * (headRadius + f.r)) {
-        // eat
+      const d2 = (head.x - f.x)*(head.x - f.x) + (head.y - f.y)*(head.y - f.y);
+      if (d2 < (headR + f.r)*(headR + f.r)) {
         foods.splice(i,1);
         pendingGrow += FOOD_VALUE;
         score += FOOD_VALUE;
-        // spawn replacement food
-        foods.push(randomFood());
       }
     }
+    if (foods.length < FOOD_COUNT) spawnFood(FOOD_COUNT);
 
-    // occasionally add food if too few
-    if (foods.length < FOOD_COUNT) foods.push(randomFood());
-
-    // self-collision: check head vs body segments skipping first N segments
-    // better: check head vs parts from index 10..end
-    for (let i = 10; i < parts.length; i += 1) {
+    // self collision (skip first few segments)
+    const hitR2 = (Math.max(6*DPR, segLen*0.8))**2;
+    for (let i=10;i<parts.length;i++){
       const p = parts[i];
-      const dxh = head.x - p.x;
-      const dyh = head.y - p.y;
-      const d2 = dxh*dxh + dyh*dyh;
-      const hitRadius = Math.max(6, segmentLength*0.8);
-      if (d2 < (hitRadius * hitRadius)) {
-        alive = false;
-        onGameOver();
-        break;
-      }
+      const d2 = (head.x-p.x)*(head.x-p.x) + (head.y-p.y)*(head.y-p.y);
+      if (d2 < hitR2) { alive = false; onGameOver(); break; }
     }
 
     updateHUD();
   }
 
-  // render everything
-  function render() {
-    // clear (use solid background for perf)
-    ctx.fillStyle = '#081218';
-    ctx.fillRect(0,0,width,height);
+  function spawnFood(n){
+    while (foods.length < n) foods.push(randFood());
+  }
+  function randFood(){
+    const margin = 28 * DPR;
+    return {
+      x: margin + Math.random() * (W - margin*2),
+      y: margin + Math.random() * (H - margin*2),
+      r: FOOD_RAD * DPR * (0.8 + Math.random()*1.6)
+    };
+  }
 
-    // draw foods
-    for (let i = 0; i < foods.length; i++) {
-      const f = foods[i];
+  function onGameOver(){
+    const s = Math.floor(score);
+    if (s > best) { best = s; localStorage.setItem(BEST_KEY, ''+best); }
+    updateHUD();
+  }
+
+  // render
+  function render() {
+    // clear
+    ctx.fillStyle = '#081218';
+    ctx.fillRect(0,0,W,H);
+
+    // foods
+    for (const f of foods){
       ctx.beginPath();
-      ctx.fillStyle = '#ffeb3b';
-      ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffd84a';
+      ctx.arc(f.x, f.y, f.r, 0, Math.PI*2);
       ctx.fill();
-      // subtle glow
-      ctx.globalAlpha = 0.15;
+      ctx.globalAlpha = 0.12;
       ctx.beginPath();
-      ctx.fillStyle = '#ffd54d';
-      ctx.arc(f.x, f.y, f.r * 2.6, 0, Math.PI * 2);
+      ctx.arc(f.x, f.y, f.r*2.6, 0, Math.PI*2);
+      ctx.fillStyle = '#ffd84a';
       ctx.fill();
       ctx.globalAlpha = 1;
     }
 
-    // draw snake body (from tail to head for nicer layering)
-    const grad = ctx.createLinearGradient(0,0,width,0);
-    grad.addColorStop(0, '#2de42e');
-    grad.addColorStop(1, '#ff66cc');
-
-    // body segments
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    for (let i = parts.length - 1; i >= 0; i--) {
+    // body
+    for (let i = parts.length-1; i >= 0; i--){
       const p = parts[i];
       const t = i / parts.length;
-      const radius = Math.max(2, segmentLength * (0.9 - t*0.6));
+      const r = Math.max(2*DPR, segLen * (0.9 - t*0.55));
       ctx.beginPath();
-      ctx.fillStyle = `rgba(${Math.floor(255*(1-t))}, ${Math.floor(255*t)}, 120, 1)`;
-      // using gradient-like color per segment gives depth; simpler solid is ok
-      ctx.arc(p.x, p.y, radius, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(${Math.floor(200*(1-t))}, ${Math.floor(80+170*t)}, ${Math.floor(120+80*t)}, 1)`;
+      ctx.arc(p.x, p.y, r, 0, Math.PI*2);
       ctx.fill();
     }
 
     // head
-    const headRadius = Math.max(6, segmentLength * 0.9);
+    const headR = Math.max(6*DPR, segLen * 0.9);
     ctx.save();
     ctx.translate(head.x, head.y);
-    ctx.rotate(head.angle);
-    // head body
+    ctx.rotate(head.ang);
     ctx.beginPath();
-    ctx.fillStyle = '#ffffff';
-    ctx.arc(0, 0, headRadius, 0, Math.PI*2);
+    ctx.fillStyle = '#fff';
+    ctx.arc(0,0, headR, 0, Math.PI*2);
     ctx.fill();
-
-    // eyes (simple)
-    const eyeOffset = headRadius * 0.45;
-    ctx.fillStyle = '#222';
-    ctx.beginPath(); ctx.arc(eyeOffset, -headRadius*0.35, Math.max(1.5, headRadius*0.25), 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(eyeOffset, headRadius*0.35, Math.max(1.5, headRadius*0.25), 0, Math.PI*2); ctx.fill();
-
+    ctx.fillStyle = '#111';
+    const eyeX = headR * 0.5;
+    ctx.beginPath(); ctx.arc(eyeX, -headR*0.34, Math.max(1.6*DPR, headR*0.28), 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(eyeX, headR*0.34, Math.max(1.6*DPR, headR*0.28), 0, Math.PI*2); ctx.fill();
     ctx.restore();
 
-    // if dead, overlay
+    // dead overlay
     if (!alive) {
       ctx.fillStyle = 'rgba(0,0,0,0.45)';
-      ctx.fillRect(0,0,width,height);
+      ctx.fillRect(0,0,W,H);
       ctx.fillStyle = '#fff';
-      ctx.font = `${Math.floor(36 * devicePixelRatio)}px sans-serif`;
       ctx.textAlign = 'center';
-      ctx.fillText('Game Over', width/2, height/2 - 10 * devicePixelRatio);
-      ctx.font = `${Math.floor(18 * devicePixelRatio)}px sans-serif`;
-      ctx.fillText(`Score: ${Math.floor(score)}`, width/2, height/2 + 26 * devicePixelRatio);
+      ctx.font = `${Math.floor(28*DPR)}px sans-serif`;
+      ctx.fillText('Game Over', W/2, H/2 - 10*DPR);
+      ctx.font = `${Math.floor(16*DPR)}px sans-serif`;
+      ctx.fillText(`Score: ${Math.floor(score)}`, W/2, H/2 + 18*DPR);
     }
   }
 
-  function onGameOver() {
-    // update best
-    if (Math.floor(score) > best) {
-      best = Math.floor(score);
-      localStorage.setItem(BEST_KEY, ''+best);
-    }
-    updateHUD();
-  }
-
-  // restart
-  restartBtn.addEventListener('click', () => {
+  // controls
+  restartBtn.addEventListener('click', ()=> {
     alive = true;
-    head.x = width/2; head.y = height/2;
+    head.x = W/2; head.y = H/2; head.ang = 0;
     target.x = head.x; target.y = head.y;
-    initSnake();
-    foods = [];
-    spawnFoods(FOOD_COUNT);
+    initSnake(); foods = []; spawnFood(FOOD_COUNT);
   });
+  backBtn.addEventListener('click', ()=> window.history.back());
 
-  backBtn.addEventListener('click', () => {
-    // go back to previous page
-    window.history.back();
-  });
-
-  // init
+  // start
   function start() {
-    head.x = width/2; head.y = height/2;
+    head.x = W/2; head.y = H/2;
     target.x = head.x; target.y = head.y;
     initSnake();
-    spawnFoods(FOOD_COUNT);
-    requestAnimationFrame(frame);
+    spawnFood(FOOD_COUNT);
+    last = 0;
+    requestAnimationFrame(step);
   }
   start();
 
-  // expose small debug on global for quick tweaking in console
-  window.__slitherDebug = {
-    parts, foods, head, setBoost: b => boosting = b
-  };
+  // quick inspect in console if needed
+  window.__SLITHER = { parts, foods, head, setBoost: b => boosting = b };
 })();
