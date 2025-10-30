@@ -1,79 +1,64 @@
-/* game.css - card + canvas inside card, video behind */
-:root{
-  --card-color:#ff66cc;
-  --glass: rgba(0,0,0,0.42);
-  --radius:20px;
-  --pad:20px;
-  --font: system-ui, "Burbank", sans-serif;
+/* game.css - minimal, basiert auf deinem Stil */
+@font-face {
+  font-family: 'Burbank';
+  src: url('Assets/burbankbigcondensed_black.otf') format('opentype');
 }
 
-*{box-sizing:border-box}
-html,body{height:100%;margin:0;font-family:var(--font);color:#fff;overflow:hidden;background:#000}
+* { box-sizing: border-box; }
+html,body { height:100%; margin:0; font-family: 'Burbank', system-ui, sans-serif; background:#000; color:#fff; overflow:hidden; }
 
-/* background video behind everything */
-#bg-video{
-  position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;
-  filter:brightness(.6) saturate(.95);
+.bg-video {
+  position:fixed; inset:0; width:100%; height:100%; object-fit:cover; z-index:-2; filter:brightness(.6);
 }
 
-/* centered card (single) */
-.game-card{
-  position:absolute;
-  left:50%; top:50%;
-  transform:translate(-50%,-50%);
-  width:min(96vw,820px);
-  padding:var(--pad);
-  border-radius:var(--radius);
-  background: linear-gradient(180deg, rgba(0,0,0,0.28), rgba(0,0,0,0.36));
-  border: 2px solid var(--card-color);
-  backdrop-filter: blur(14px);
+/* Card (single) */
+.game-card {
+  position: absolute;
+  top:50%; left:50%;
+  transform: translate(-50%,-50%);
+  width: min(95vw, 780px);
+  border-radius: 22px;
+  padding: 20px;
+  background: rgba(0,0,0,0.45);
+  border: 2px solid #ff66cc;
+  backdrop-filter: blur(18px);
   display:flex; flex-direction:column; gap:12px;
-  z-index:2;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
 }
 
 /* header */
-.card-header{display:flex;gap:14px;align-items:center}
-.profile-pic{width:84px;height:84px;border-radius:50%;object-fit:cover;border:2px solid var(--card-color)}
-.title{margin:0;font-size:1.45rem}
-.sub{font-size:.9rem;opacity:.95}
+.card-header { display:flex; gap:14px; align-items:center; }
+.profile-pic { width:80px; height:80px; border-radius:50%; object-fit:cover; border:2px solid; }
+.header-info h1 { margin:0; font-size:1.6rem; color:inherit; }
+.header-info .sub { font-size:0.9rem; opacity:0.85; }
 
-/* canvas wrapper: aspect ratio like your card, canvas fills it */
-.canvas-wrap{
+/* canvas wrapper */
+.canvas-wrap {
   position:relative;
   width:100%;
   aspect-ratio: 16 / 9;
-  border-radius:12px;
+  border-radius:14px;
   overflow:hidden;
-  background: rgba(0,0,0,0.12); /* slightly darker so canvas content is visible */
   display:flex; align-items:center; justify-content:center;
+  background: linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.45));
   border: 1px solid rgba(255,255,255,0.03);
 }
 
-/* canvas fills the wrapper exactly and is transparent so video shows behind */
-#game-canvas{
-  width:100%;
-  height:100%;
-  display:block;
-  background:transparent;
-  touch-action:none;
-  z-index:1;
+canvas { width:100%; height:100%; display:block; touch-action:none; }
+
+#hud {
+  position:absolute; top:10px; left:10px; display:flex; gap:10px; align-items:center; z-index:5;
 }
+#score, #best { background: rgba(0,0,0,0.4); padding:6px 10px; border-radius:8px; font-weight:700; }
+.small-btn { background: rgba(255,255,255,0.08); color:#fff; border:none; padding:6px 10px; border-radius:8px; cursor:pointer; }
 
-/* HUD inside wrapper */
-#hud{position:absolute;left:12px;top:12px;display:flex;gap:8px;align-items:center;z-index:6}
-#score,#best{background:rgba(0,0,0,0.38);padding:6px 10px;border-radius:8px;font-weight:700}
-.btn{background:rgba(255,255,255,0.08);color:#fff;border:none;padding:8px 10px;border-radius:8px;cursor:pointer}
-.btn.primary{background:var(--card-color);font-weight:800}
+/* footer controls */
+.card-text { margin:0; font-size:0.95rem; opacity:0.9; }
+.card-play-btn.small { width:120px; padding:10px; border-radius:12px; background:#ff66cc; border:none; color:#fff; font-weight:800; cursor:pointer; }
 
-/* footer */
-.card-footer{display:flex;justify-content:space-between;align-items:center}
-.info{margin:0;opacity:.9;font-size:.95rem}
-
-/* responsive */
-@media (max-width:600px){
-  .profile-pic{width:64px;height:64px}
-  .title{font-size:1.05rem}
-  .game-card{width:95vw;padding:14px;border-radius:14px}
-  #hud{left:8px;top:8px}
+/* responsive adjust */
+@media (max-width:600px) {
+  .game-card { width:94vw; padding:14px; border-radius:16px; }
+  .profile-pic { width:64px; height:64px; }
+  .header-info h1 { font-size:1.2rem; }
 }
