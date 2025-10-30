@@ -1,64 +1,55 @@
-/* game.css - minimal, basiert auf deinem Stil */
-@font-face {
-  font-family: 'Burbank';
-  src: url('Assets/burbankbigcondensed_black.otf') format('opentype');
+/* game.css - kompakt, an dein Design angepasst */
+:root{
+  --card-color:#ff66cc;
+  --glass: rgba(0,0,0,0.45);
+  --glass-strong: rgba(0,0,0,0.6);
+  --radius:18px;
+  --pad:18px;
+  --font: system-ui, "Burbank", sans-serif;
 }
 
-* { box-sizing: border-box; }
-html,body { height:100%; margin:0; font-family: 'Burbank', system-ui, sans-serif; background:#000; color:#fff; overflow:hidden; }
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:var(--font);color:#fff;overflow:hidden;background:#000}
 
-.bg-video {
-  position:fixed; inset:0; width:100%; height:100%; object-fit:cover; z-index:-2; filter:brightness(.6);
+/* Hintergrundvideo */
+#bg-video{
+  position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;
+  filter:brightness(.55) saturate(.95);
 }
 
-/* Card (single) */
-.game-card {
-  position: absolute;
-  top:50%; left:50%;
-  transform: translate(-50%,-50%);
-  width: min(95vw, 780px);
-  border-radius: 22px;
-  padding: 20px;
-  background: rgba(0,0,0,0.45);
-  border: 2px solid #ff66cc;
-  backdrop-filter: blur(18px);
-  display:flex; flex-direction:column; gap:12px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+/* Card zentriert */
+.game-card{
+  position:absolute;inset:0;display:flex;flex-direction:column;gap:12px;
+  width:min(94vw,820px);max-width:94vw;padding:var(--pad);border-radius:var(--radius);
+  margin:auto;left:50%;top:50%;transform:translate(-50%,-50%);
+  background:linear-gradient(180deg, rgba(0,0,0,0.28), rgba(0,0,0,0.36));
+  backdrop-filter: blur(14px); border:2px solid var(--card-color); box-shadow:0 20px 60px rgba(0,0,0,.6);
 }
 
-/* header */
-.card-header { display:flex; gap:14px; align-items:center; }
-.profile-pic { width:80px; height:80px; border-radius:50%; object-fit:cover; border:2px solid; }
-.header-info h1 { margin:0; font-size:1.6rem; color:inherit; }
-.header-info .sub { font-size:0.9rem; opacity:0.85; }
+/* Header */
+.card-header{display:flex;gap:14px;align-items:center}
+.profile-pic{width:84px;height:84px;border-radius:50%;object-fit:cover;border:2px solid var(--card-color)}
+.header-info h1{margin:0;font-size:1.4rem}
+.header-info .sub{font-size:.85rem;opacity:.9}
 
-/* canvas wrapper */
-.canvas-wrap {
-  position:relative;
-  width:100%;
-  aspect-ratio: 16 / 9;
-  border-radius:14px;
-  overflow:hidden;
-  display:flex; align-items:center; justify-content:center;
-  background: linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.45));
-  border: 1px solid rgba(255,255,255,0.03);
-}
+/* Canvas wrapper */
+.canvas-wrap{position:relative;border-radius:12px;overflow:hidden;background:transparent;aspect-ratio:16/9}
+#game-canvas{display:block;width:100%;height:100%;touch-action:none;background:transparent}
 
-canvas { width:100%; height:100%; display:block; touch-action:none; }
+/* HUD */
+#hud{position:absolute;left:12px;top:12px;display:flex;gap:8px;align-items:center;z-index:6}
+#score,#best{background:rgba(0,0,0,0.35);padding:6px 10px;border-radius:8px;font-weight:700}
+.btn{background:rgba(255,255,255,0.08);color:#fff;border:none;padding:8px 10px;border-radius:8px;cursor:pointer}
+.btn.primary{background:var(--card-color);font-weight:800}
 
-#hud {
-  position:absolute; top:10px; left:10px; display:flex; gap:10px; align-items:center; z-index:5;
-}
-#score, #best { background: rgba(0,0,0,0.4); padding:6px 10px; border-radius:8px; font-weight:700; }
-.small-btn { background: rgba(255,255,255,0.08); color:#fff; border:none; padding:6px 10px; border-radius:8px; cursor:pointer; }
+/* Footer */
+.card-footer{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.info{margin:0;opacity:.9;font-size:.95rem}
 
-/* footer controls */
-.card-text { margin:0; font-size:0.95rem; opacity:0.9; }
-.card-play-btn.small { width:120px; padding:10px; border-radius:12px; background:#ff66cc; border:none; color:#fff; font-weight:800; cursor:pointer; }
-
-/* responsive adjust */
-@media (max-width:600px) {
-  .game-card { width:94vw; padding:14px; border-radius:16px; }
-  .profile-pic { width:64px; height:64px; }
-  .header-info h1 { font-size:1.2rem; }
+/* Responsive tweaks */
+@media (max-width:600px){
+  .profile-pic{width:64px;height:64px}
+  .header-info h1{font-size:1.05rem}
+  .game-card{width:95vw;padding:12px;border-radius:12px}
+  #hud{left:8px;top:8px}
 }

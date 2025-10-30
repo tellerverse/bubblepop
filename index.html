@@ -3,39 +3,39 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>moritz.gg — Playground</title>
+  <title>moritz.gg — Game</title>
   <link rel="stylesheet" href="game.css">
 </head>
 <body>
-  <!-- Hintergrundvideo (nutze deine Assets) -->
-  <video autoplay muted loop id="bg-video" class="bg-video">
+  <!-- Background video -->
+  <video id="bg-video" autoplay muted loop playsinline>
     <source src="Assets/mecoding.mp4" type="video/mp4">
   </video>
 
-  <!-- Einzige Karte in der Mitte -->
-  <div class="card game-card" role="main" aria-label="Game card">
-    <div class="card-header">
+  <!-- Center card (one card only) -->
+  <main class="card game-card" role="main" aria-label="Game card">
+    <header class="card-header">
       <img src="Assets/medeving.jpg" class="profile-pic" alt="moritz">
       <div class="header-info">
-        <h1 class="underline-animate">slither — singleplayer</h1>
-        <div class="sub">WASD / Maus / Touch — Halten = Boost</div>
+        <h1>slither — singleplayer</h1>
+        <div class="sub">Maus / Touch / WASD — Halten = Boost</div>
       </div>
-    </div>
+    </header>
 
     <div class="canvas-wrap">
-      <canvas id="game-canvas"></canvas>
+      <canvas id="game-canvas" tabindex="0" aria-label="Spielbereich"></canvas>
       <div id="hud">
         <div id="score">Score: 0</div>
         <div id="best">Best: 0</div>
-        <button id="restart" class="small-btn">Restart</button>
+        <button id="restart" class="btn">Restart</button>
       </div>
     </div>
 
-    <p class="card-text small">
-      Mobil-optimiert. Boost kostet Länge. Ziel: so groß wie möglich werden.
-    </p>
-    <button id="back" class="card-play-btn small">Zurück</button>
-  </div>
+    <footer class="card-footer">
+      <p class="info">Boost kostet Länge. Ziel: so groß wie möglich werden.</p>
+      <button id="back" class="btn primary">Zurück</button>
+    </footer>
+  </main>
 
   <script src="game.js"></script>
 </body>
