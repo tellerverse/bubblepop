@@ -14,100 +14,121 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener("resize",resizeCanvas);
 
-const W = 2000; // Spielfeld-Breite
-const H = 2000; // Spielfeld-Höhe
-const segLen = 10;
+const FIELD_W = 2000;
+const FIELD_H = 2000;
+const SEG_LEN = 12;
 const START_LEN = 20;
-const BASE_SPEED = 2.2;
+const BASE_SPEED = 2.5;
 
-let head, parts, target, alive, score, highscore, camera;
-let foods=[], bots=[];
+let player, foods=[], bots=[], camera, alive, score, highscore, target;
 
 function init(){
-  head={x:W/2,y:H/2,ang:0};
-  parts=[];
-  for(let i=0;i<START_LEN;i++) parts.push({x:head.x-i*segLen,y:head.y});
-  target={x:head.x,y:head.y};
-  camera={x:head.x,y:head.y};
+  // Player
+  player = {
+    head: {x: FIELD_W/2, y: FIELD_H/2, ang:0},
+    parts: [],
+    color:"#2de42e"
+  };
+  for(let i=0;i<START_LEN;i++) player.parts.push({x:player.head.x-i*SEG_LEN,y:player.head.y});
+  
+  // Camera
+  camera = {x:player.head.x, y:player.head.y};
+  target={x:player.head.x, y:player.head.y};
   alive=true;
+  
+  // Score
   score=0;
   if(!highscore) highscore=0;
+  
+  // Essen
   foods=[];
-  for(let i=0;i<100;i++) foods.push({x:Math.random()*W, y:Math.random()*H, size:6});
+  for(let i=0;i<100;i++) foods.push({x:Math.random()*FIELD_W, y:Math.random()*FIELD_H, size:6});
+  
+  // Bots
   bots=[];
-  for(let i=0;i<6;i++) bots.push(new Bot(`hsl(${Math.random()*360},80%,60%)`));
+  for(let i=0;i<6;i++) bots.push(new Bot());
+  
   restartBtn.classList.add("hidden");
   updateScore();
 }
 
+// Bot-Klasse
 class Bot{
-  constructor(color){
-    this.head={x:Math.random()*W,y:Math.random()*H,ang:Math.random()*2*Math.PI};
-    this.parts=Array.from({length:START_LEN},(_,i)=>({x:this.head.x-i*segLen,y:this.head.y}));
-    this.color=color;
+  constructor(){
+    this.head={x:Math.random()*FIELD_W, y:Math.random()*FIELD_H, ang:Math.random()*2*Math.PI};
+    const botLength = START_LEN + Math.floor(Math.random()*30); // random Länge
+    this.parts=Array.from({length:botLength},(_,i)=>({x:this.head.x-i*SEG_LEN, y:this.head.y}));
+    this.color=`hsl(${Math.random()*360},80%,60%)`;
     this.timer=0;
-    this.target={x:this.head.x,y:this.head.y};
+    this.target={x:this.head.x, y:this.head.y};
   }
   update(delta){
-    this.timer-=delta;
-    if(this.timer<=0){
-      this.timer=60+Math.random()*120;
-      this.target={x:Math.random()*W,y:Math.random()*H};
+    // Ziel auf Essen
+    let nearestFood = null;
+    let minDist = Infinity;
+    for(const f of foods){
+      const d = Math.hypot(f.x-this.head.x,f.y-this.head.y);
+      if(d<minDist){ minDist=d; nearestFood=f; }
     }
-    moveSnake(this.head,this.parts,this.target,delta,BASE_SPEED*0.9,false);
+    if(nearestFood) this.target = {x: nearestFood.x, y: nearestFood.y};
+    
+    moveSnake(this.head, this.parts, this.target, delta, BASE_SPEED*0.9, false);
     this.checkFood();
   }
   checkFood(){
     for(const f of foods){
       const dx=f.x-this.head.x;
       const dy=f.y-this.head.y;
-      if(Math.hypot(dx,dy)<segLen*2){
+      if(Math.hypot(dx,dy)<SEG_LEN*2){
         foods.splice(foods.indexOf(f),1);
-        foods.push({x:Math.random()*W,y:Math.random()*H,size:6});
+        foods.push({x:Math.random()*FIELD_W, y:Math.random()*FIELD_H, size:6});
         this.parts.push({...this.parts[this.parts.length-1]});
       }
     }
   }
 }
 
-function moveSnake(head, parts, target, delta, speed, player=true){
-  let dx=target.x-head.x;
-  let dy=target.y-head.y;
+// Snake-Bewegung
+function moveSnake(head, parts, target, delta, speed, playerControlled=true){
+  let dx = target.x-head.x;
+  let dy = target.y-head.y;
   const dist=Math.hypot(dx,dy);
-  if(player && dist<5) { dx=Math.cos(head.ang); dy=Math.sin(head.ang);}
-  const desired=Math.atan2(dy,dx);
-  let diff=Math.atan2(Math.sin(desired-head.ang),Math.cos(desired-head.ang));
-  head.ang+=diff*0.15;
-  head.x+=Math.cos(head.ang)*speed*delta;
-  head.y+=Math.sin(head.ang)*speed*delta;
-  clampPosition(head);
+  if(playerControlled && dist<5){ dx=Math.cos(head.ang); dy=Math.sin(head.ang);}
+  const desired = Math.atan2(dy,dx);
+  const diff = Math.atan2(Math.sin(desired-head.ang), Math.cos(desired-head.ang));
+  head.ang += diff*0.15;
+  head.x += Math.cos(head.ang)*speed*delta;
+  head.y += Math.sin(head.ang)*speed*delta;
+  clamp(head);
   for(let i=0;i<parts.length;i++){
     const p=parts[i];
     const prev=i===0?head:parts[i-1];
-    const a=Math.atan2(prev.y-p.y,prev.x-p.x);
-    p.x=prev.x-Math.cos(a)*segLen;
-    p.y=prev.y-Math.sin(a)*segLen;
-    clampPosition(p);
+    const a=Math.atan2(prev.y-p.y, prev.x-p.x);
+    p.x = prev.x - Math.cos(a)*SEG_LEN;
+    p.y = prev.y - Math.sin(a)*SEG_LEN;
+    clamp(p);
   }
-  if(player) checkFood();
-  if(player) checkCollision();
+  if(playerControlled){
+    checkFood();
+    checkCollisions();
+  }
 }
 
-function clampPosition(p){
+// Spielfeld-Begrenzung
+function clamp(p){
   if(p.x<0)p.x=0;
-  if(p.x>W)p.x=W;
+  if(p.x>FIELD_W)p.x=FIELD_W;
   if(p.y<0)p.y=0;
-  if(p.y>H)p.y=H;
+  if(p.y>FIELD_H)p.y=FIELD_H;
 }
 
+// Spieler frisst Essen
 function checkFood(){
   for(const f of foods){
-    const dx=f.x-head.x;
-    const dy=f.y-head.y;
-    if(Math.hypot(dx,dy)<segLen*2){
+    if(Math.hypot(f.x-player.head.x, f.y-player.head.y)<SEG_LEN*1.5){
       foods.splice(foods.indexOf(f),1);
-      foods.push({x:Math.random()*W,y:Math.random()*H,size:6});
-      parts.push({...parts[parts.length-1]});
+      foods.push({x:Math.random()*FIELD_W, y:Math.random()*FIELD_H, size:6});
+      player.parts.push({...player.parts[player.parts.length-1]});
       score++;
       if(score>highscore) highscore=score;
       updateScore();
@@ -115,17 +136,17 @@ function checkFood(){
   }
 }
 
-function checkCollision(){
-  for(let i=4;i<parts.length;i++){
-    const p=parts[i];
-    if(Math.hypot(p.x-head.x,p.y-head.y)<segLen*0.8){
+// Kollisionen mit sich selbst oder Bots
+function checkCollisions(){
+  for(let i=4;i<player.parts.length;i++){
+    if(Math.hypot(player.parts[i].x-player.head.x, player.parts[i].y-player.head.y)<SEG_LEN*0.8){
       alive=false;
       restartBtn.classList.remove("hidden");
     }
   }
   for(const b of bots){
     for(const p of b.parts){
-      if(Math.hypot(p.x-head.x,p.y-head.y)<segLen*0.8){
+      if(Math.hypot(p.x-player.head.x,p.y-player.head.y)<SEG_LEN*0.8){
         alive=false;
         restartBtn.classList.remove("hidden");
       }
@@ -133,71 +154,84 @@ function checkCollision(){
   }
 }
 
-function drawSnake(head,parts,color){
+// Zeichnen
+function drawSnake(head, parts, color){
   for(let i=parts.length-1;i>=0;i--){
     const p=parts[i];
     const t=i/parts.length;
-    const r=segLen*(0.9-0.5*t);
+    const r=SEG_LEN*(0.9-0.5*t);
     ctx.beginPath();
     ctx.fillStyle=`hsl(${t*80},80%,60%)`;
-    ctx.arc(p.x-camera.x+canvas.width/2,p.y-camera.y+canvas.height/2,r,0,2*Math.PI);
+    ctx.arc(p.x-camera.x+card.clientWidth/2, p.y-camera.y+card.clientHeight/2, r,0,2*Math.PI);
     ctx.fill();
   }
   ctx.save();
-  ctx.translate(head.x-camera.x+canvas.width/2,head.y-camera.y+canvas.height/2);
+  ctx.translate(head.x-camera.x+card.clientWidth/2, head.y-camera.y+card.clientHeight/2);
   ctx.rotate(head.ang);
   ctx.beginPath();
   ctx.fillStyle=color;
-  ctx.arc(0,0,segLen*0.9,0,2*Math.PI);
+  ctx.arc(0,0,SEG_LEN*0.9,0,2*Math.PI);
   ctx.fill();
   ctx.restore();
 }
 
+// Rendern
 function render(){
-  ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
+  // Canvas clear
+  ctx.clearRect(0,0,card.clientWidth, card.clientHeight);
+  ctx.fillStyle = "rgba(0,0,0,0.0)"; // transparent über Video
+  ctx.fillRect(0,0,card.clientWidth, card.clientHeight);
+
+  // Essen
   for(const f of foods){
     ctx.beginPath();
-    ctx.arc(f.x-camera.x+canvas.width/2,f.y-camera.y+canvas.height/2,f.size,0,2*Math.PI);
+    ctx.arc(f.x-camera.x+card.clientWidth/2, f.y-camera.y+card.clientHeight/2, f.size,0,2*Math.PI);
     ctx.fillStyle="orange";
     ctx.fill();
   }
+
+  // Bots
   for(const b of bots) drawSnake(b.head,b.parts,b.color);
-  drawSnake(head,parts,"#2de42e");
+
+  // Player
+  drawSnake(player.head,player.parts,player.color);
 }
 
+// Score
 function updateScore(){
-  scoreEl.textContent="Score: "+score;
-  highscoreEl.textContent="Highscore: "+highscore;
+  scoreEl.textContent = "Score: "+score;
+  highscoreEl.textContent = "Highscore: "+highscore;
 }
 
-let lastTime = performance.now();
+// Game Loop
+let lastTime=performance.now();
 function step(now=0){
-  const delta=(now-lastTime)/16;
+  const delta = (now-lastTime)/16;
   lastTime=now;
-
   if(alive){
-    moveSnake(head,parts,target,delta,BASE_SPEED,true);
+    moveSnake(player.head, player.parts, target, delta, BASE_SPEED, true);
     for(const b of bots) b.update(delta);
-    camera.x=head.x;
-    camera.y=head.y;
+    camera.x = player.head.x;
+    camera.y = player.head.y;
   }
-
   render();
   requestAnimationFrame(step);
 }
 
-canvas.addEventListener("mousemove",e=>{
+// Input
+canvas.addEventListener("mousemove", e=>{
   const rect=canvas.getBoundingClientRect();
-  target.x=e.clientX-rect.left + camera.x - canvas.width/2;
-  target.y=e.clientY-rect.top + camera.y - canvas.height/2;
+  target.x=e.clientX-rect.left + camera.x - card.clientWidth/2;
+  target.y=e.clientY-rect.top + camera.y - card.clientHeight/2;
 });
-canvas.addEventListener("touchmove",e=>{
+canvas.addEventListener("touchmove", e=>{
   const t=e.touches[0];
   const rect=canvas.getBoundingClientRect();
-  target.x=t.clientX-rect.left + camera.x - canvas.width/2;
-  target.y=t.clientY-rect.top + camera.y - canvas.height/2;
+  target.x=t.clientX-rect.left + camera.x - card.clientWidth/2;
+  target.y=t.clientY-rect.top + camera.y - card.clientHeight/2;
 },{passive:true});
 
+// Restart
 restartBtn.addEventListener("click",init);
 
 init();
